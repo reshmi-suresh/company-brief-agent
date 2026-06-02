@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { exportBriefPdf } from "@/lib/exportBriefPdf";
 
 interface Props {
   brief: string;
@@ -17,6 +18,10 @@ export default function BriefOutput({ brief, company, isStreaming = false, onRes
       contentRef.current.scrollTop = contentRef.current.scrollHeight;
     }
   }, [brief, isStreaming]);
+
+  const handleDownloadPdf = () => {
+    exportBriefPdf(brief, company);
+  };
 
   const handleDownload = () => {
     const blob = new Blob([brief], { type: "text/plain" });
@@ -69,22 +74,38 @@ export default function BriefOutput({ brief, company, isStreaming = false, onRes
         {brief || (isStreaming ? "…" : "")}
       </div>
 
-      <div className="flex gap-3">
-        <button
-          onClick={handleDownload}
-          disabled={isStreaming || !brief}
-          className="flex-1 py-3 rounded-lg text-sm tracking-widest uppercase transition-all disabled:opacity-30"
-          style={{
-            background: "var(--accent)",
-            color: "var(--bg)",
-            fontFamily: "var(--font-body)",
-          }}
-        >
-          Download Brief ↓
-        </button>
+      <div className="space-y-3">
+        {!isStreaming && (
+          <div className="flex gap-3">
+            <button
+              onClick={handleDownload}
+              disabled={!brief}
+              className="flex-1 py-3 rounded-lg text-sm tracking-widest uppercase transition-all disabled:opacity-30"
+              style={{
+                background: "var(--accent)",
+                color: "var(--bg)",
+                fontFamily: "var(--font-body)",
+              }}
+            >
+              Download Brief ↓
+            </button>
+            <button
+              onClick={handleDownloadPdf}
+              disabled={!brief}
+              className="flex-1 py-3 rounded-lg text-sm tracking-widest uppercase transition-all disabled:opacity-30"
+              style={{
+                border: "1px solid var(--accent)",
+                color: "var(--accent)",
+                fontFamily: "var(--font-body)",
+              }}
+            >
+              Download as PDF
+            </button>
+          </div>
+        )}
         <button
           onClick={onReset}
-          className="px-5 py-3 rounded-lg text-sm tracking-widest uppercase transition-all"
+          className="w-full px-5 py-3 rounded-lg text-sm tracking-widest uppercase transition-all"
           style={{
             border: "1px solid var(--border)",
             color: "var(--text-muted)",
