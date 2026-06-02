@@ -39,14 +39,35 @@ export default function Home() {
   };
 
   const handlePromptApprove = async (finalPrompt: string) => {
+    setBrief("");
     setStage("generating");
+
     const res = await fetch("/api/generate-brief", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ prompt: finalPrompt, ...formData }),
     });
-    const json = await res.json();
-    setBrief(json.brief);
+
+    if (!res.ok || !res.body) {
+      setBrief("Failed to generate brief. Please try again.");
+      setStage("done");
+      return;
+    }
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        setBrief((prev) => prev + decoder.decode(value, { stream: true }));
+      }
+      setBrief((prev) => prev + decoder.decode());
+    } catch {
+      setBrief((prev) => prev || "Failed to generate brief. Please try again.");
+    }
+
     setStage("done");
   };
 
@@ -80,21 +101,11 @@ export default function Home() {
             onBack={() => setStage("input")}
           />
         )}
-        {stage === "generating" && (
-          <div className="text-center py-16">
-            <div className="inline-block w-6 h-6 border border-[var(--accent)] border-t-transparent rounded-full animate-spin mb-4" />
-            <p className="text-sm text-[var(--text-muted)]">
-              Agent 2 is researching {formData.company}…
-            </p>
-            <p className="text-xs text-[var(--text-muted)] mt-1 opacity-60">
-              This takes 30–60 seconds
-            </p>
-          </div>
-        )}
-        {stage === "done" && (
+        {(stage === "generating" || stage === "done") && (
           <BriefOutput
             brief={brief}
             company={formData.company}
+            isStreaming={stage === "generating"}
             onReset={() => {
               setStage("input");
               setFormData({ company: "", contact: "", role: "", additionalInfo: "" });
