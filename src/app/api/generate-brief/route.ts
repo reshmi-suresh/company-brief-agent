@@ -1,6 +1,6 @@
 export const maxDuration = 60;
 
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -8,7 +8,7 @@ const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 export async function POST(req: NextRequest) {
   const { prompt, company, contact, role, additionalInfo } = await req.json();
 
-  const message = await client.messages.create({
+  const stream = client.messages.stream({
     model: "claude-opus-4-5",
     max_tokens: 8192,
     messages: [
@@ -38,7 +38,26 @@ Begin the document now.`,
     ],
   });
 
-  const brief = message.content[0].type === "text" ? message.content[0].text : "";
+  const readableStream = new ReadableStream({
+    async start(controller) {
+      const encoder = new TextEncoder();
+      try {
+        for await (const event of stream) {
+          if (
+            event.type === "content_block_delta" &&
+            event.delta.type === "text_delta"
+          ) {
+            controller.enqueue(encoder.encode(event.delta.text));
+          }
+        }
+        controller.close();
+      } catch (error) {
+        controller.error(error);
+      }
+    },
+  });
 
-  return NextResponse.json({ brief });
+  return new Response(readableStream, {
+    headers: { "Content-Type": "text/plain; charset=utf-8" },
+  });
 }
